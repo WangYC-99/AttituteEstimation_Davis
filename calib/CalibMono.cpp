@@ -63,8 +63,8 @@ int main()
         // 提取角点
         if (0 == findChessboardCorners(imageInput, board_size, image_points_buf))
         {
-            std::cout <<"这是第" << image_count <<"张照片，没找到棋盘角点，摸了!\n";
-            exit(0);
+            std::cout <<"这是imgae_" << image_count - 1 <<"，没找到棋盘角点，摸了!\n";
+            // exit(0);
         }
         else
         {

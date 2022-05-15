@@ -22,7 +22,7 @@ camera::~camera()
 
 void camera::function() {
 
-	vector<cv::Point> points_selected(3);
+	vector<cv::Point2f> points_selected(3);
 	// static atomic_bool globalShutdown(false);
 
 	// static void globalShutdownSignalHandler(int signal) {
@@ -113,10 +113,25 @@ void camera::function() {
 	davisHandle.configSet(DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_AUTOEXPOSURE, false);
 	davisHandle.configSet(DAVIS_CONFIG_APS, DAVIS_CONFIG_APS_EXPOSURE, 4200);
 
-	cv::namedWindow("PLOT_EVENTS",
-		cv::WindowFlags::WINDOW_AUTOSIZE | cv::WindowFlags::WINDOW_KEEPRATIO | cv::WindowFlags::WINDOW_GUI_EXPANDED);
-	cv::namedWindow("PLOT_FRAME",
-		cv::WindowFlags::WINDOW_AUTOSIZE | cv::WindowFlags::WINDOW_KEEPRATIO | cv::WindowFlags::WINDOW_GUI_EXPANDED);
+	cv::Mat cameraMatrix = cv::Mat(3, 3, CV_32FC1, cv::Scalar::all(0)); // 摄像机内参数矩阵
+    cv::Mat distCoeffs   = cv::Mat(1, 5, CV_32FC1, cv::Scalar::all(0)); // 摄像机的5个畸变系数：k1,k2,p1,p2,k3
+	
+    cameraMatrix.at<float>(0, 0) = 1.9567466282961288e+02;
+    cameraMatrix.at<float>(0, 2) = 1.0577070896553398e+02;
+    cameraMatrix.at<float>(1, 1) = 1.9534670253508108e+02;
+    cameraMatrix.at<float>(1, 2) = 9.6975360024586649e+01;
+    cameraMatrix.at<float>(2, 2) = 1.;
+
+    distCoeffs.at<float>(0, 0) = -4.0544743015005236e-01;
+    distCoeffs.at<float>(0, 1) = 1.9259010066228921e-01;
+    distCoeffs.at<float>(0, 2) = 8.1365636792228959e-04;
+    distCoeffs.at<float>(0, 3) = -4.1489788374319701e-04;
+    distCoeffs.at<float>(0, 4) = -4.6558748509152897e-02; 
+
+	// cv::namedWindow("PLOT_EVENTS",
+	// 	cv::WindowFlags::WINDOW_AUTOSIZE | cv::WindowFlags::WINDOW_KEEPRATIO | cv::WindowFlags::WINDOW_GUI_EXPANDED);
+	// cv::namedWindow("PLOT_FRAME",
+	// 	cv::WindowFlags::WINDOW_AUTOSIZE | cv::WindowFlags::WINDOW_KEEPRATIO | cv::WindowFlags::WINDOW_GUI_EXPANDED);
 
 	while (1) {
 		std::unique_ptr<libcaer::events::EventPacketContainer> packetContainer = davisHandle.dataGet();
@@ -154,92 +169,8 @@ void camera::function() {
 					cvEvents.at<cv::Vec3b>(e.getY(), e.getX())
 						= e.getPolarity() ? cv::Vec3b{255, 255, 255} : cv::Vec3b{0, 0, 0};
 				}
-
+				imshow("event_img", cvEvents);
 				//findingalgorithm:
-				cv::Mat imgGray;
-				cv::Mat imgBinary;
-				vector<vector<cv::Point>> contours;
-				vector<cv::Vec4i> hierachy;
-				int vecnumber = 0;
-				vector<int> i_of_contours;
-				
-
-				// cout << "width:" << cvEvents.cols << endl;
-				// cout << "height:" << cvEvents.rows << endl;
-
-				cv::Point2f centerP(120, 90);
-
-				cv::cvtColor(cvEvents, imgGray, CV_BGR2GRAY);
-				cv::threshold(imgGray, imgBinary, 100, 250, cv::THRESH_BINARY_INV);
-
-				cv::Mat element_1 = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(1, 1));
-				cv::Mat element_2 = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2, 2));
-
-				cv::erode(imgBinary, imgBinary, element_2);
-				cv::dilate(imgBinary, imgBinary, element_1);
-
-				cv::findContours(imgBinary, contours, hierachy, CV_RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-
-				map<int, int> m_i2d;
-				map<int, cv::Point> m_i2p;
-
-				for (int i = 0; i < contours.size(); i++)
-				{
-					cv::Point center;
-					cv::RotatedRect rect=minAreaRect(contours[i]);
-					cv::Point2f P[4];
-					rect.points(P);
-					int h = getDistance(P[0], P[1]);
-					int w = getDistance(P[1], P[2]);
-					int area = h * w;
-					center.x = (P[0].x + P[2].x)/2;
-					center.y = (P[0].y + P[2].y)/2;
-
-					float distance = sqrtf(pow((center.x - centerP.x), 2) + pow((center.y - centerP.y), 2)); 
-
-					m_i2d[i] = distance;
-					m_i2p[i] = center;
-						
-					if (vecnumber <= 3)
-					{
-						i_of_contours.push_back(i);
-						vecnumber += 1;
-					}
-					else
-					{
-						for (int j = 0; j < 3; j++)
-						{
-							if (m_i2d[i] < m_i2d[i_of_contours[j]])
-							{
-								i_of_contours[j] = i;
-								break;
-							}
-						}
-					}
-
-				}
-
-				if (i_of_contours.size() == 0)
-				{
-					cout << "未获取到事件帧" << endl;
-				}
-				else{
-					for(int i = 0; i < i_of_contours.size(); i++)
-					{
-						// cv::circle(imgBinary, m_i2p[i_of_contours[i]], 1, cv::Scalar(0,0,255.0), 1, 1, 0);
-						// cv::drawContours(imgBinary, contours[i_of_contours[i]], 0, cv::Scalar(255), 2);
-						points_selected[i] = m_i2p[i_of_contours[i]];
-						cout << "the current number of i_of_contours is:" << i << endl;
-					}
-				}
-
-				// cv::circle(imgBinary, centerP, 5, cv::Scalar(0,0,255.0), 3, 8, 0);
-				cv::imshow("PLOT_EVENTS", imgBinary);
-
-				// map<vector<cv::Point>, cv::Point> m_c2p;
-				
-				cv::waitKey(1);
-				
 			}
 
 			if (packet->getEventType() == FRAME_EVENT) {
@@ -266,15 +197,140 @@ void camera::function() {
 					}
 
 					cv::Mat cvFrame = f.getOpenCVMat(false);
+					// cv::Mat cvFrame;
+					// cv::undistort(cvFrame_distort, cvFrame, cameraMatrix, distCoeffs);
 					// Simple display, just use OpenCV GUI.
 					cv::cvtColor(cvFrame, cvFrame, cv::COLOR_GRAY2BGR);
+
+					cv::Mat imgBinary;
+					cv::Mat imgGray;
+					// imgGray.create(CV_8UC1);
+					vector<vector<cv::Point>> contours;
+					vector<cv::Vec4i> hierachy;
+					int vecnumber = 0;
+					vector<int> i_of_contours;
 					
-					for (int i = 0; i < points_selected.size(); i++)
+
+					// cout << "width:" << cvEvents.cols << endl;
+					// cout << "height:" << cvEvents.rows << endl;
+
+					cv::Point2f centerP(120, 90);
+
+					cv::cvtColor(cvFrame, imgGray, CV_BGR2GRAY);
+					// cout << imgGray << endl;
+					// cv::waitKey(0);
+					imgGray = imgGray / 255;
+					// cout << imgGray << endl;
+					// cv::waitKey(0);
+					// cout << "cvFrame:" << cvFrame.channels() << endl;
+					// cout << "imgGray:" << imgGray.channels() << endl;
+					// cv::imshow("imgGray", imgGray);
+					// cv::waitKey(0);
+					imgGray.convertTo(imgGray, CV_8U);
+					// cout << imgGray << endl;
+					// cv::waitKey(0);
+					cv::threshold(imgGray, imgBinary, 20, 250, cv::THRESH_BINARY);
+
+					cv::Mat element_1 = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(1, 1));
+					cv::Mat element_2 = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2, 2));
+
+					cv::erode(imgBinary, imgBinary, element_2);
+					cv::dilate(imgBinary, imgBinary, element_1);
+
+					cv::findContours(imgBinary, contours, hierachy, CV_RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+
+					map<int, int> m_i2d;
+					map<int, cv::Point> m_i2p;
+
+					for (int i = 0; i < contours.size(); i++)
 					{
-						cv::circle(cvFrame, points_selected[i], 3, cv::Scalar(0,0,255.0), 3, 3, 0);
-						cout << "the current number of points_selected is:" << i << endl;
+						cv::Point center;
+						cv::RotatedRect rect=minAreaRect(contours[i]);
+						cv::Point2f P[4];
+						rect.points(P);
+						int h = getDistance(P[0], P[1]);
+						int w = getDistance(P[1], P[2]);
+						int area = h * w;
+						center.x = (P[0].x + P[2].x)/2;
+						center.y = (P[0].y + P[2].y)/2;
+
+						float distance = sqrtf(pow((center.x - centerP.x), 2) + pow((center.y - centerP.y), 2)); 
+
+						m_i2d[i] = distance;
+						m_i2p[i] = center;
+							
+						if (vecnumber <= 3)
+						{
+							i_of_contours.push_back(i);
+							vecnumber += 1;
+						}
+						else
+						{
+							for (int j = 0; j < 3; j++)
+							{
+								if (m_i2d[i] < m_i2d[i_of_contours[j]])
+								{
+									i_of_contours[j] = i;
+									break;
+								}
+							}
+						}
+
 					}
-					cv::imshow("PLOT_FRAME", cvFrame);
+
+					if (i_of_contours.size() == 0)
+					{
+						cout << "未获取到事件帧" << endl;
+					}
+					else{
+						cout << "satisfied" << endl;
+						for(int i = 0; i < i_of_contours.size(); i++)
+						{
+							// cv::circle(imgBinary, m_i2p[i_of_contours[i]], 1, cv::Scalar(0,0,255.0), 1, 1, 0);
+							// cv::drawContours(imgBinary, contours[i_of_contours[i]], 0, cv::Scalar(255), 2);
+							points_selected[i] = m_i2p[i_of_contours[i]];
+							// cout << "the current number of i_of_contours is:" << i << endl;
+						}
+						if (i_of_contours.size() == 3)
+						{
+							cv::Mat rvecs = cv::Mat::zeros(3, 1, CV_64FC1);
+							cv::Mat tvecs = cv::Mat::zeros(3, 1, CV_64FC1);
+							vector<cv::Point3f> objP;
+							objP.clear();
+							objP.push_back(cv::Point3f(0, 0, 0));
+							objP.push_back(cv::Point3f(1.4, 2.2, 0));
+							objP.push_back(cv::Point3f(4, 1.3, 0));
+
+							solvePnP(objP, points_selected, cameraMatrix, distCoeffs, rvecs, tvecs);
+							cv::Mat rotM = cv::Mat::zeros(3, 1, CV_64FC1);
+							cv::Mat rotT = cv::Mat::zeros(3, 1, CV_64FC1);
+							cv::Rodrigues(rvecs, rotM);
+							cv::Rodrigues(tvecs, rotT);
+
+							double theta_x, theta_y,theta_z;
+							double PI = 3.14;
+							theta_x = atan2(rotM.at<double>(2, 1), rotM.at<double>(2, 2));
+							theta_y = atan2(-rotM.at<double>(2, 0),
+							sqrt(rotM.at<double>(2, 1)*rotM.at<double>(2, 1) + rotM.at<double>(2, 2)*rotM.at<double>(2, 2)));
+							theta_z = atan2(rotM.at<double>(1, 0), rotM.at<double>(0, 0));
+							theta_x = theta_x * (180 / PI);
+							theta_y = theta_y * (180 / PI);
+							theta_z = theta_z * (180 / PI);
+
+							cout << "pitch:" << theta_x << endl;
+							cout << "yaw:" << theta_y << endl;
+							cout << "row:" << theta_z << endl; 
+						}
+					}
+					
+					// for (int i = 0; i < points_selected.size(); i++)
+					// {
+					// 	// cv::circle(cvFrame, points_selected[i], 3, cv::Scalar(255,255,255), 3, 3, 0);
+					// 	cout << "the current number of points_selected is:" << i << endl;
+					// }
+					cv::imshow("bgr_img", cvFrame);
+					cv::imshow("gray_img", imgGray);
+					cv::imshow("bin_img", imgBinary);
 					cv::waitKey(1);
 				}
 			}

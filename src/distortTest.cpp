@@ -48,17 +48,35 @@ int main()
     cv::Mat cameraMatrix = cv::Mat(3, 3, CV_32FC1, cv::Scalar::all(0)); // 摄像机内参数矩阵
     cv::Mat distCoeffs   = cv::Mat(1, 5, CV_32FC1, cv::Scalar::all(0)); // 摄像机的5个畸变系数：k1,k2,p1,p2,k3
 
-    cameraMatrix.at<float>(0, 0) = 2.0051109271105071e+02;
-    cameraMatrix.at<float>(0, 3) = 1.0320481858056947e+02;
-    cameraMatrix.at<float>(1, 1) = 2.0051109271105071e+02;
-    cameraMatrix.at<float>(1, 2) = 9.5269574917876866e+01;
+    // cameraMatrix.at<float>(0, 0) = 2.0051109271105071e+02;
+    // cameraMatrix.at<float>(0, 3) = 1.0320481858056947e+02;
+    // cameraMatrix.at<float>(1, 1) = 2.0051109271105071e+02;
+    // cameraMatrix.at<float>(1, 2) = 9.5269574917876866e+01;
+    // cameraMatrix.at<float>(2, 2) = 1.;
+	
+    cameraMatrix.at<float>(0, 0) = 1.9567466282961288e+02;
+    cameraMatrix.at<float>(0, 2) = 1.0577070896553398e+02;
+    cameraMatrix.at<float>(1, 1) = 1.9534670253508108e+02;
+    cameraMatrix.at<float>(1, 2) = 9.6975360024586649e+01;
     cameraMatrix.at<float>(2, 2) = 1.;
 
-    distCoeffs.at<float>(0, 0) = -4.1493955882402356e-01;
-    distCoeffs.at<float>(0, 1) = 2.2858315476539787e-01;
-    distCoeffs.at<float>(0, 2) = 3.7861257763060283e-06;
-    distCoeffs.at<float>(0, 3) = 8.1589213734131001e-04;
-    distCoeffs.at<float>(0, 4) = -7.8462959681429245e-0;
+
+    // distCoeffs.at<float>(0, 0) = -4.1493955882402356e-01;
+    // distCoeffs.at<float>(0, 1) = 2.2858315476539787e-01;
+    // distCoeffs.at<float>(0, 2) = 3.7861257763060283e-06;
+    // distCoeffs.at<float>(0, 3) = 8.1589213734131001e-04;
+    // distCoeffs.at<float>(0, 4) = -7.8462959681429245e-0; 
+
+
+    distCoeffs.at<float>(0, 0) = -4.0544743015005236e-01;
+    distCoeffs.at<float>(0, 1) = 1.9259010066228921e-01;
+    distCoeffs.at<float>(0, 2) = 8.1365636792228959e-04;
+    distCoeffs.at<float>(0, 3) = -4.1489788374319701e-04;
+    distCoeffs.at<float>(0, 4) = -4.6558748509152897e-02; 
+
+	//    data: [ -4.0544743015005236e-01, 1.9259010066228921e-01,
+    //    8.1365636792228959e-04, -4.1489788374319701e-04,
+    //    -4.6558748509152897e-02 ]
     
     cout << "camera:" << endl;
     for(int i = 0; i < 3; i++)
